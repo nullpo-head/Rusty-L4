@@ -1,13 +1,17 @@
 [package]
-name = "r4"
+name = "rusty_l4"
 version = "0.1.0"
 authors = ["Takaya Saeki <abc.tkys+pub@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+bootloader = "0.3.12"
 
 [profile.dev]
 panic = "abort"
 
 [profile.release]
 panic = "abort"
+
+[package.metadata.bootimage]
+default-target = "x86_64-rusty_l4.json"
