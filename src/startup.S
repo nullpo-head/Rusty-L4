@@ -1,5 +1,5 @@
 	.section .multiboot_header
-	.balign  16
+	.balign 16
 _mb_header:
 	.long 0xe85250d6			/* magic */
 	.long 0x00000000			/* flags */
@@ -137,6 +137,7 @@ _putc_serial:
 # Long mode entry point
 ###
 	.text
+	.globl rust_start
 	.globl _jmp_to_rust
 .code64
 _jump_to_rust:
@@ -162,6 +163,7 @@ _jump_to_rust:
 	call _putc_serial
 	movb $'\n', %al
 	call _putc_serial
+	jmp rust_start
 	hlt
 
 

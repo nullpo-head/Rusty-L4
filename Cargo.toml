@@ -4,6 +4,9 @@ version = "0.1.0"
 authors = ["Takaya Saeki <abc.tkys+pub@gmail.com>"]
 edition = "2018"
 
+[lib]
+crate-type = ["staticlib"]
+
 [dependencies]
 bootloader = "0.3.12"
 volatile = "0.2.3"
