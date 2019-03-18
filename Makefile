@@ -23,5 +23,6 @@ run: build/os.iso
 
 clean:
 	rm -rf build
+	cargo clean
 
 .PHONY: run all clean kernel
