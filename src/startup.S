@@ -1,4 +1,4 @@
-	.section .multiboot_header
+	.section .multiboot_header, "ax" # "ax" to prevent lld from mapping failure
 	.balign 16
 _mb_header:
 	.long 0xe85250d6			/* magic */
