@@ -181,5 +181,5 @@ _jump_to_rust:
 # Stack
 ###
 	.data
-	.space	1 << 20
+	.space	1 << 21
 _mini_stack:
