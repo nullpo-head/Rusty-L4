@@ -166,7 +166,6 @@ _jump_to_rust:
 	jmp rust_start
 	hlt
 
-
 ###
 # Paging Structures
 ###
@@ -182,5 +181,5 @@ _jump_to_rust:
 # Stack
 ###
 	.data
-	.space	1024
+	.space	1 << 20
 _mini_stack:
