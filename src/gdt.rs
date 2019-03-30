@@ -20,15 +20,20 @@ lazy_static! {
     };
 
     static ref GDT: (GlobalDescriptorTable, Selectors) = {
+        use x86_64::structures::gdt::DescriptorFlags as Flags;
+
         let mut gdt = GlobalDescriptorTable::new();
         let code_selector = gdt.add_entry(Descriptor::kernel_code_segment());
+        let flags = Flags::USER_SEGMENT | Flags::PRESENT | Flags::LONG_MODE;
+        let data_selector = gdt.add_entry(Descriptor::UserSegment(flags.bits() | (1 << 41)));
         let tss_selector = gdt.add_entry(Descriptor::tss_segment(&TSS));
-        (gdt, Selectors { code_selector, tss_selector })
+        (gdt, Selectors { code_selector, data_selector, tss_selector })
     };
 }
 
 struct Selectors {
     code_selector: SegmentSelector,
+    data_selector: SegmentSelector,
     tss_selector: SegmentSelector,
 }
 
@@ -39,11 +44,11 @@ pub fn init() {
     GDT.0.load();
     unsafe {
         seg::set_cs(GDT.1.code_selector);
-        seg::load_ds(GDT.1.code_selector);
-        seg::load_es(GDT.1.code_selector);
-        seg::load_ss(GDT.1.code_selector);
-        seg::load_gs(GDT.1.code_selector);
-        seg::load_fs(GDT.1.code_selector);
+        seg::load_ds(GDT.1.data_selector);
+        seg::load_es(GDT.1.data_selector);
+        seg::load_ss(GDT.1.data_selector);
+        seg::load_gs(GDT.1.data_selector);
+        seg::load_fs(GDT.1.data_selector);
         load_tss(GDT.1.tss_selector);
     }
 }

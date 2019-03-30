@@ -13,7 +13,7 @@ mod vga_buffer;
 pub extern "C" fn rust_start() -> ! {
     println!("Hello Hello, World!\nsome numbers: {} {}", 42, 1.337);
 
-    //gdt::init();
+    gdt::init();
     interrupts::init_idt();
     x86_64::instructions::interrupts::int3();
     /*unsafe {
