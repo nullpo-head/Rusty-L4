@@ -4,23 +4,29 @@
 
 use core::panic::PanicInfo;
 
+extern crate multiboot2;
+
 pub mod interrupts;
 pub mod gdt;
 
 mod vga_buffer;
 
 #[no_mangle]
-pub extern "C" fn rust_start() -> ! {
+pub extern "C" fn rust_start(multiboot_info_addr: usize) -> ! {
     println!("Hello Hello, World!\nsome numbers: {} {}", 42, 1.337);
 
     gdt::init();
     interrupts::init_idt();
-    x86_64::instructions::interrupts::int3();
-    /*unsafe {
-        asm!("mov dx, 0; div dx" ::: "ax", "dx" : "volatile", "intel")
-    }*/
 
-    println!("It did not crash");
+    let boot_info = unsafe { multiboot2::load(multiboot_info_addr) };
+    let memory_map_tag = boot_info.memory_map_tag()
+        .expect("Memory map tag required");
+
+    println!("memory areas:");
+    for area in memory_map_tag.memory_areas() {
+        println!("    start: 0x{:x}, length: 0x{:x}",
+                 area.start_address(), area.size());
+    }
 
     loop {}
 }

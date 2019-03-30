@@ -57,6 +57,7 @@ _start:
 	cli
 	cld
 	movl $_mini_stack, %esp
+        movl %ebx, %edi             /* to be passed to Rust's main; Multiboot info  */
 # Debug
 	movb $'A', %al
 	call _putc_serial
@@ -153,6 +154,7 @@ _jump_to_rust:
 	movw %ax, %fs
 	movw %ax, %gs
 	movw %ax, %ss
+        movq %rdi, %r8                        /* Save Multiboot info */
 # Fill the screen with blue
 	movl $0xB8000, %edi
 	movq $0x1F201F201F201F20, %rax
@@ -163,6 +165,7 @@ _jump_to_rust:
 	call _putc_serial
 	movb $'\n', %al
 	call _putc_serial
+        movq %r8, %rdi                        /* Restore Multiboot info */
 	jmp rust_start
 	hlt
 

@@ -12,6 +12,7 @@ spin = "0.4.9"
 volatile = "0.2.3"
 x86_64 = "0.5.2"
 bit_field = "0.9.0"
+multiboot2 = "0.7.1"
 
 [dependencies.lazy_static]
 version = "1.0"
