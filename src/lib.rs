@@ -18,7 +18,8 @@ pub extern "C" fn rust_start(multiboot_info_addr: usize) -> ! {
     gdt::init();
     interrupts::init_idt();
 
-    let boot_info = unsafe { multiboot2::load(multiboot_info_addr) };
+    println!("multiboot_info_addr: 0x{:x}", multiboot_info_addr);
+    let boot_info = unsafe { multiboot2::load(multiboot_info_addr + 0xffffffffc0000000usize) };
     let memory_map_tag = boot_info.memory_map_tag()
         .expect("Memory map tag required");
 

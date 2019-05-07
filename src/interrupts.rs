@@ -1,7 +1,7 @@
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
 use lazy_static::lazy_static;
 use crate::println;
-use crate::gdt;
+
 
 lazy_static! {
     static ref IDT: InterruptDescriptorTable = {

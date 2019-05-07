@@ -14,7 +14,7 @@ _mb_header_end:
 ###
 # GDT
 ###
-	.data
+	.section .data.init
 	.align 4096
 _boot_gdt:
 	.set _boot_gdt_null, . - _boot_gdt
@@ -47,17 +47,21 @@ _boot_gdtr:
 	.quad _boot_gdt
 
 
+#define KERNEL_BASE 0xffffffffc0000000ULL
+#define PT_INDEX(addr, level) ((addr >> (12 + (level - 1) * 9)) & ((1 << 9) - 1))
+
 ###
 # The multiboot entry point
 ###
-	.text
+	.section .text.init
 	.globl _start
 .code32
 _start:
 	cli
 	cld
 	movl $_mini_stack, %esp
-        movl %ebx, %edi             /* to be passed to Rust's main; Multiboot info  */
+	call _init_serial
+	movl %ebx, %edi             /* to be passed to Rust's main; Multiboot info  */
 # Debug
 	movb $'A', %al
 	call _putc_serial
@@ -74,21 +78,29 @@ _start:
 	call _puts_serial
 	hlt
 	_nohugepage_msg:
-	.ascii "\nNo, huge page support. halting..\n\0"
+	.ascii "\nNo huge page support. halting..\n\0"
 1:
-	/* Make pml4 point to pdp */
+	/* Make huge-page pdp entreis */
+	movl $_boot_pdp, %ebx
+	xorl %ecx, %ecx
+	movl $0x83, %eax            /* Present, RW, and Page Size */
+	/*   - the 0th entry to map [0, 1G) to [0, 1G) */
+	movl %eax, 0(%ebx)
+	movl %ecx, 4(%ebx)
+	/*   - the 511th entry to map [0xffff_ffff_c000_0000, +1G) to [0, 1G) */
+	movl %eax, 8*PT_INDEX(KERNEL_BASE,3)(%ebx)
+	movl %ecx, 4+8*PT_INDEX(KERNEL_BASE,3)(%ebx)
+	/* Make pml4 entries. */
 	movl $_boot_pml4, %ebx
 	movl $_boot_pdp, %eax
 	orl $0x3, %eax              /* Present and RW */
+	xorl %ecx, %ecx
+	/*   - Let the 0th entry point to the pdpe to map [0, 1G) to [0, 1G) */
 	movl %eax, 0(%ebx)
-	xorl %eax, %eax
-	movl %eax, 4(%ebx)
-	/* Put an indentity-mapping pdp entry */
-	movl $_boot_pdp, %ebx
-	movl $0x83, %eax            /* Present, RW, and Page Size */
-	movl %eax, 0(%ebx)
-	xorl %eax, %eax
-	movl %eax, 4(%ebx)
+	movl %ecx, 4(%ebx)
+	/*   - Let the 511th entry point to the pdpe to map [0xffff_ffff_c000_0000, +1G) to [0, 1G) */
+	movl %eax, 8*PT_INDEX(KERNEL_BASE,4)(%ebx)
+	movl %ecx, 4+8*PT_INDEX(KERNEL_BASE,4)(%ebx)
 	/* Set them to cr3 */
 	movl $_boot_pml4, %eax
 	movl %eax, %cr3
@@ -115,20 +127,61 @@ _start:
 	ljmp $_boot_gdt_code, $_jump_to_rust
 	hlt
 
+_init_serial:
+    /* wrt xv6 */
+	/* Turn off the FIFO */
+	movl $(0x3f8 + 2), %edx
+	movb $0, %al
+	outb %al, %dx
+	/* Configuration; 9600, 8 data bits, 1 stop bits, parity off */
+	movl $(0x3f8 + 3), %edx
+	movb $0x80, %al
+	outb %al, %dx
+	movl $(0x3f8 + 0), %edx
+	movb $(11520/9600), %al
+	outb %al, %dx
+	movl $(0x3f8 + 1), %edx
+	movb $0, %al
+	outb %al, %dx
+	movl $(0x3f8 + 3), %edx
+	movb $0x03, %al
+	outb %al, %dx
+	movl $(0x3f8 + 4), %edx
+	movb $0, %al
+	outb %al, %dx
+	movl $(0x3f8 + 1), %edx
+	movb $0x01, %al
+	outb %al, %dx
+	movl $_init_serial_msg, %eax
+	call _puts_serial
+	ret
+	_init_serial_msg:
+	.ascii "serial initialization done\n\0"
+
+
 _puts_serial:
-	movl $0x3f8, %edx
 	movl %eax, %ebx
 1:
 	movb (%ebx), %al
 	testb %al, %al
 	jz 2f
-	outb %al, %dx
+	call _putc_serial
 	incl %ebx
 	jmp 1b
 2:
 	ret
 
 _putc_serial:
+	movl %eax, %ecx
+	movl $(0x3f8 + 5), %edx
+1:
+	inb %dx, %al
+	testb $0x20, %al
+	jnz 2f
+	nop
+	jmp 1b
+2:
+	movl %ecx, %eax
 	movl $0x3f8, %edx
 	outb %al, %dx
 	ret
@@ -137,8 +190,7 @@ _putc_serial:
 ###
 # Long mode entry point
 ###
-	.text
-	.globl rust_start
+	.section .text.init
 	.globl _jmp_to_rust
 .code64
 _jump_to_rust:
@@ -154,7 +206,7 @@ _jump_to_rust:
 	movw %ax, %fs
 	movw %ax, %gs
 	movw %ax, %ss
-        movq %rdi, %r8                        /* Save Multiboot info */
+	movq %rdi, %r8                        /* Save Multiboot info */
 # Fill the screen with blue
 	movl $0xB8000, %edi
 	movq $0x1F201F201F201F20, %rax
@@ -165,24 +217,32 @@ _jump_to_rust:
 	call _putc_serial
 	movb $'\n', %al
 	call _putc_serial
-        movq %r8, %rdi                        /* Restore Multiboot info */
-	jmp rust_start
+	movq %r8, %rdi                        /* Restore Multiboot info */
+	movabsq $rust_start, %rax
+	jmpq *%rax
 	hlt
 
-###
-# Paging Structures
-###
-	.globl _boot_pml4
-.comm _boot_pml4, 4096, 4096
-	.globl _boot_pdp
-.comm _boot_pdp, 4096, 4096
-	.globl _boot_pd
-.comm _boot_pd, 4096, 4096
 
 
 ###
 # Stack
 ###
-	.data
+	.section .data.init
 	.space	1 << 21
 _mini_stack:
+
+###
+# Paging Structures
+###
+	.align 4096
+	.globl _boot_pml4
+_boot_pml4:
+# .space _boot_pml4, 4096, 4096
+	.space 4096, 0
+	.globl _boot_pdp
+#.comm _boot_pdp, 4096, 4096
+_boot_pdp:
+	.space 4096, 0
+	.globl _boot_pd
+_boot_pd:
+	.space 4096, 0
