@@ -1,6 +1,10 @@
 #![no_std]
 #![feature(abi_x86_interrupt)]
 #![feature(asm)]
+#![feature(lang_items)]
+#![feature(custom_test_frameworks)]
+#![test_runner(crate::test_runner)]
+#![reexport_test_harness_main = "test_main"]
 
 use core::panic::PanicInfo;
 
@@ -8,7 +12,6 @@ extern crate multiboot2;
 
 pub mod interrupts;
 pub mod gdt;
-
 mod vga_buffer;
 
 #[no_mangle]
@@ -17,6 +20,9 @@ pub extern "C" fn rust_start(multiboot_info_addr: usize) -> ! {
 
     gdt::init();
     interrupts::init_idt();
+
+    #[cfg(test)]
+    test_main();
 
     println!("multiboot_info_addr: 0x{:x}", multiboot_info_addr);
     let boot_info = unsafe { multiboot2::load(multiboot_info_addr + 0xffffffffc0000000usize) };
@@ -38,3 +44,11 @@ fn panic(info: &PanicInfo) -> ! {
     loop {}
 }
 
+
+#[cfg(test)]
+pub fn test_runner(tests: &[&dyn Fn()]) {
+    println!("Running {} tests", tests.len());
+    for test in tests {
+        test();
+    }
+}
